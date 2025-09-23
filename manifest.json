@@ -1,0 +1,32 @@
+{
+  "manifest_version": 3,
+  "name": "Gate Exchange Symbol Switcher",
+  "version": "1.0",
+  "description": "A Chrome extension to switch between cryptocurrency symbols on Gate exchange using keyboard shortcuts",
+  "permissions": ["activeTab"],
+  "host_permissions": ["https://api.gateio.ws/*"],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://www.gate.com/zh/futures/USDT/*"],
+      "js": ["content.js"]
+    },
+    {
+      "matches": ["https://www.gate.com/zh/trade/*"],
+      "js": ["content.js"]
+    }
+  ],
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "web_accessible_resources": [
+    {
+      "resources": ["icons/*"],
+      "matches": ["https://www.gate.com/*"]
+    }
+  ]
+}
