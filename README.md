@@ -4,7 +4,7 @@
 
 ## 功能特性
 
-- 🚀 快速币种切换：使用 `Command + ↓` 组合键在 Gate 交易所界面快速切换到其他币种
+- 🚀 快速币种切换：使用 `Command + ▼` 组合键在 Gate 交易所界面快速切换到其他币种
 - 🍎 macOS 优化：专为 macOS 用户设计的键盘快捷键
 - 🎯 智能匹配：自动识别当前正在查看的币种并切换到目标币种
 
@@ -31,7 +31,7 @@
 1. 访问 Gate 交易所的期货交易页面，例如：
    - `https://www.gate.com/zh/futures/USDT/BTC_USDT`
    - `https://www.gate.com/zh/futures/USDT/SOL_USDT`
-2. 按下 `Command + ↓` 组合键切换到 ETH
+2. 按下 `Command + ▼` 组合键切换到 ETH
 
 ## 项目结构
 
@@ -50,7 +50,7 @@ exgate/
 
 ### 当前实现
 
-- ✅ 监听 `Command + ↓` 组合键
+- ✅ 监听 `Command + ▼` 组合键
 - ✅ 自动识别当前币种
 - ✅ 切换到 ETH 币种
 - ✅ 阻止默认键盘行为

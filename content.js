@@ -13,6 +13,8 @@
   let dataLoaded = false; // 数据是否已加载
   let isLoading = false; // 是否正在加载数据
   let currentSymbol = null; // 当前选中的币种
+  let favoriteSymbols = { futures: [], spot: [] }; // 自选币种
+  let showOnlyFavorites = { futures: false, spot: false }; // 是否只显示自选币种
 
   // localStorage键名常量
   const STORAGE_KEYS = {
@@ -23,6 +25,10 @@
     SORT_ORDER: "gate_sort_order",
     FUTURES_TIMESTAMP: "gate_futures_timestamp",
     SPOT_TIMESTAMP: "gate_spot_timestamp",
+    FAVORITES_FUTURES: "gate_favorites_futures",
+    FAVORITES_SPOT: "gate_favorites_spot",
+    SHOW_FAVORITES_FUTURES: "gate_show_favorites_futures",
+    SHOW_FAVORITES_SPOT: "gate_show_favorites_spot",
   };
 
   // 缓存过期时间（30分钟）
@@ -101,6 +107,8 @@
 
     if (cachedData) {
       contractsData = cachedData;
+      // 加载自选数据
+      loadFavoriteSymbols();
       // 优先使用URL中的币种，如果URL中没有币种才使用缓存的币种
       const urlSymbol = getCurrentSymbol();
       currentSymbol = urlSymbol || cachedSymbol;
@@ -172,6 +180,75 @@
     return otherMarketData.some((item) => item.symbol === symbol);
   }
 
+  // 自选币种相关函数
+  function loadFavoriteSymbols() {
+    const futuresFavorites =
+      loadFromLocalStorage(STORAGE_KEYS.FAVORITES_FUTURES) || [];
+    const spotFavorites =
+      loadFromLocalStorage(STORAGE_KEYS.FAVORITES_SPOT) || [];
+    const showFuturesFavorites =
+      loadFromLocalStorage(STORAGE_KEYS.SHOW_FAVORITES_FUTURES) || false;
+    const showSpotFavorites =
+      loadFromLocalStorage(STORAGE_KEYS.SHOW_FAVORITES_SPOT) || false;
+
+    favoriteSymbols.futures = futuresFavorites;
+    favoriteSymbols.spot = spotFavorites;
+    showOnlyFavorites.futures = showFuturesFavorites;
+    showOnlyFavorites.spot = showSpotFavorites;
+  }
+
+  function saveFavoriteSymbols() {
+    saveToLocalStorage(STORAGE_KEYS.FAVORITES_FUTURES, favoriteSymbols.futures);
+    saveToLocalStorage(STORAGE_KEYS.FAVORITES_SPOT, favoriteSymbols.spot);
+    saveToLocalStorage(
+      STORAGE_KEYS.SHOW_FAVORITES_FUTURES,
+      showOnlyFavorites.futures
+    );
+    saveToLocalStorage(
+      STORAGE_KEYS.SHOW_FAVORITES_SPOT,
+      showOnlyFavorites.spot
+    );
+  }
+
+  function isFavorite(symbol, pageType = null) {
+    if (!pageType) pageType = getPageType();
+    return favoriteSymbols[pageType].includes(symbol);
+  }
+
+  function toggleFavorite(symbol, pageType = null) {
+    if (!pageType) pageType = getPageType();
+    const favorites = favoriteSymbols[pageType];
+    const index = favorites.indexOf(symbol);
+
+    if (index > -1) {
+      favorites.splice(index, 1);
+    } else {
+      favorites.push(symbol);
+    }
+
+    saveFavoriteSymbols();
+    updateContractsList();
+    updateDrawerTitle();
+  }
+
+  function toggleShowOnlyFavorites(pageType = null) {
+    if (!pageType) pageType = getPageType();
+    showOnlyFavorites[pageType] = !showOnlyFavorites[pageType];
+    saveFavoriteSymbols();
+    updateContractsList();
+    updateDrawerTitle();
+  }
+
+  function getFilteredContractsData() {
+    const pageType = getPageType();
+    if (!showOnlyFavorites[pageType]) {
+      return contractsData;
+    }
+    return contractsData.filter((contract) =>
+      isFavorite(contract.symbol, pageType)
+    );
+  }
+
   // 切换到指定币种
   function switchToSymbol(symbol) {
     // 更新当前币种状态
@@ -195,27 +272,42 @@
     }
   }
 
-  // 获取当前币种在列表中的索引
+  // 获取当前币种在列表中的索引（基于过滤后的数据）
   function getCurrentSymbolIndex() {
-    if (!currentSymbol || contractsData.length === 0) return -1;
-    return contractsData.findIndex(
+    if (!currentSymbol) return -1;
+    const filteredData = getFilteredContractsData();
+    if (filteredData.length === 0) return -1;
+    return filteredData.findIndex(
       (contract) => contract.symbol === currentSymbol
     );
   }
 
-  // 获取上一个币种
+  // 获取上一个币种（循环导航）
   function getPreviousSymbol() {
+    const filteredData = getFilteredContractsData();
+    if (filteredData.length === 0) return null;
+
     const currentIndex = getCurrentSymbolIndex();
-    if (currentIndex <= 0) return null;
-    return contractsData[currentIndex - 1].symbol;
+    if (currentIndex < 0) return filteredData[0].symbol;
+
+    // 循环导航：如果是第一个，跳到最后一个
+    const prevIndex =
+      currentIndex === 0 ? filteredData.length - 1 : currentIndex - 1;
+    return filteredData[prevIndex].symbol;
   }
 
-  // 获取下一个币种
+  // 获取下一个币种（循环导航）
   function getNextSymbol() {
+    const filteredData = getFilteredContractsData();
+    if (filteredData.length === 0) return null;
+
     const currentIndex = getCurrentSymbolIndex();
-    if (currentIndex < 0 || currentIndex >= contractsData.length - 1)
-      return null;
-    return contractsData[currentIndex + 1].symbol;
+    if (currentIndex < 0) return filteredData[0].symbol;
+
+    // 循环导航：如果是最后一个，跳到第一个
+    const nextIndex =
+      currentIndex === filteredData.length - 1 ? 0 : currentIndex + 1;
+    return filteredData[nextIndex].symbol;
   }
 
   // 键盘事件处理器
@@ -266,7 +358,10 @@
       if (targetSymbol) {
         switchToSymbol(targetSymbol);
       } else {
-        console.log("No target symbol available for navigation");
+        console.log(
+          "No symbols available for navigation (filtered list may be empty)"
+        );
+        showTooltip("没有可导航的币种");
       }
     }
   }
@@ -471,9 +566,9 @@
     drawer.style.cssText = `
       position: fixed;
       top: 40px;
-      left: -420px;
+      left: -450px;
       bottom: 0px;
-      width: 420px;
+      width: 450px;
       background: #fff;
       box-shadow: 2px 0 10px rgba(0, 0, 0, 0.3);
       z-index: 9999;
@@ -579,12 +674,87 @@
     buttonContainer.appendChild(refreshBtn);
     buttonContainer.appendChild(topBtn);
 
-    // 创建标题文本节点
+    // 创建标题区域
     const pageType = getPageType();
-    const titleText = document.createTextNode(
-      pageType === "spot" ? "现货币种列表" : "合约币种列表"
-    );
-    title.appendChild(titleText);
+
+    // 标题左侧部分
+    const titleLeft = document.createElement("div");
+    titleLeft.style.cssText = `
+      display: flex;
+      align-items: center;
+      flex: 1;
+    `;
+
+    // 标题文本
+    const titleText = document.createElement("span");
+    titleText.textContent = pageType === "spot" ? "现货币种" : "合约币种";
+    titleText.style.cssText = `
+      margin-right: 10px;
+      font-size: 16px;
+      font-weight: 600;
+    `;
+
+    // 切换按钮组
+    const toggleContainer = document.createElement("div");
+    toggleContainer.style.cssText = `
+      display: flex;
+      align-items: center;
+      background: #f0f0f0;
+      border-radius: 15px;
+      padding: 2px;
+    `;
+
+    // 全部按钮
+    const allBtn = document.createElement("button");
+    allBtn.id = "show-all-btn";
+    allBtn.textContent = "全部";
+    allBtn.style.cssText = `
+      background: ${!showOnlyFavorites[pageType] ? "#2196f3" : "transparent"};
+      color: ${!showOnlyFavorites[pageType] ? "white" : "#666"};
+      border: none;
+      border-radius: 12px;
+      padding: 4px 12px;
+      font-size: 12px;
+      cursor: pointer;
+      margin-right: 2px;
+      transition: all 0.2s ease;
+    `;
+
+    // 自选按钮
+    const favBtn = document.createElement("button");
+    favBtn.id = "show-favorites-btn";
+    favBtn.textContent = "自选";
+    favBtn.style.cssText = `
+      background: ${showOnlyFavorites[pageType] ? "#2196f3" : "transparent"};
+      color: ${showOnlyFavorites[pageType] ? "white" : "#666"};
+      border: none;
+      border-radius: 12px;
+      padding: 4px 12px;
+      font-size: 12px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    `;
+
+    // 添加点击事件
+    allBtn.addEventListener("click", () => {
+      if (showOnlyFavorites[pageType]) {
+        toggleShowOnlyFavorites(pageType);
+      }
+    });
+
+    favBtn.addEventListener("click", () => {
+      if (!showOnlyFavorites[pageType]) {
+        toggleShowOnlyFavorites(pageType);
+      }
+    });
+
+    toggleContainer.appendChild(allBtn);
+    toggleContainer.appendChild(favBtn);
+
+    titleLeft.appendChild(titleText);
+    titleLeft.appendChild(toggleContainer);
+
+    title.appendChild(titleLeft);
     title.appendChild(buttonContainer);
 
     // 创建列表头部（排序按钮）
@@ -593,12 +763,21 @@
 
     listHeader.style.cssText = `
       display: grid;
-      grid-template-columns: ${isSpot ? "1fr 80px 80px" : "1fr 80px 80px 80px"};
-      gap: 10px;
-      padding: 0 15px;
+      grid-template-columns: ${
+        isSpot ? "40px 1fr 80px 80px" : "40px 1fr 80px 80px 80px"
+      };
+      padding: 0 15px 0 0;
       font-size: 12px;
       font-weight: 600;
       color: #666;
+    `;
+
+    // 自选列头
+    const favoriteHeader = document.createElement("div");
+    favoriteHeader.textContent = "自选";
+    favoriteHeader.style.cssText = `
+      text-align: center;
+      cursor: default;
     `;
 
     const symbolHeader = document.createElement("div");
@@ -608,6 +787,7 @@
     const changeHeader = createSortButton("涨跌幅", "change_percentage_24h");
     const volumeHeader = createSortButton("交易额", "volume_24h");
 
+    listHeader.appendChild(favoriteHeader);
     listHeader.appendChild(symbolHeader);
     listHeader.appendChild(changeHeader);
     listHeader.appendChild(volumeHeader);
@@ -628,6 +808,7 @@
       flex: 1;
       overflow-y: auto;
       padding: 0;
+      line-height: 32px;
     `;
 
     drawer.appendChild(header);
@@ -676,9 +857,7 @@
     headers.forEach((button) => {
       button.style.color = "#666";
       // 移除箭头
-      button.textContent = button.textContent
-        .replace(" ↑", "")
-        .replace(" ↓", "");
+      button.textContent = button.textContent.replace("▲", "").replace("▼", "");
     });
 
     // 高亮当前排序字段
@@ -693,7 +872,7 @@
       if (button.textContent.includes(currentFieldText)) {
         button.style.color = "#007bff";
         button.textContent =
-          currentFieldText + (currentSortOrder === "desc" ? " ↓" : " ↑");
+          currentFieldText + (currentSortOrder === "desc" ? "▼" : "▲");
       }
     });
   }
@@ -706,38 +885,38 @@
     container.innerHTML = "";
     const pageType = getPageType();
     const isSpot = pageType === "spot";
+    const filteredData = getFilteredContractsData();
 
-    contractsData.forEach((contract) => {
+    filteredData.forEach((contract) => {
       const item = document.createElement("div");
       const isCurrentSymbol = contract.symbol === currentSymbol;
 
       item.style.cssText = `
         display: grid;
         grid-template-columns: ${
-          isSpot ? "1fr 80px 80px" : "1fr 80px 80px 80px"
+          isSpot ? "40px 1fr 80px 80px" : "40px 1fr 80px 80px 80px"
         };
-        gap: 10px;
-        padding: 10px 15px;
+        padding: 0 15px 0 0;
         border-bottom: 1px solid #f0f0f0;
         cursor: pointer;
         transition: background-color 0.2s ease;
         align-items: center;
         ${
           isCurrentSymbol
-            ? "background-color: #d9e8f6; border-left: 3px solid #2196f3;"
+            ? "background-color: #dff0ff; border-left: 3px solid #2196f3;"
             : ""
         }
       `;
 
       item.addEventListener("mouseenter", () => {
         if (!isCurrentSymbol) {
-          item.style.backgroundColor = "#f8f9fa";
+          item.style.backgroundColor = "#e8f5ff";
         }
       });
 
       item.addEventListener("mouseleave", () => {
         if (isCurrentSymbol) {
-          item.style.backgroundColor = "#bbdefb";
+          item.style.backgroundColor = "#dff0ff";
         } else {
           item.style.backgroundColor = "transparent";
         }
@@ -780,6 +959,35 @@
         text-align: right;
       `;
 
+      // 自选按钮（第一列）
+      const favoriteEl = document.createElement("div");
+      const isFav = isFavorite(contract.symbol, pageType);
+      favoriteEl.innerHTML = isFav ? "★" : "★";
+      favoriteEl.style.cssText = `
+        font-size: 16px;
+        color: ${isFav ? "#ff9d00" : "#ccc"};
+        text-align: center;
+        cursor: pointer;
+        user-select: none;
+        transition: all 0.2s ease;
+      `;
+
+      // 自选按钮点击事件（阻止冒泡，避免触发行点击）
+      favoriteEl.addEventListener("click", (e) => {
+        e.stopPropagation();
+        toggleFavorite(contract.symbol, pageType);
+      });
+
+      // 自选按钮hover效果
+      favoriteEl.addEventListener("mouseenter", () => {
+        favoriteEl.style.transform = "scale(1.2)";
+      });
+
+      favoriteEl.addEventListener("mouseleave", () => {
+        favoriteEl.style.transform = "scale(1)";
+      });
+
+      item.appendChild(favoriteEl);
       item.appendChild(symbolEl);
       item.appendChild(changeEl);
       item.appendChild(volumeEl);
@@ -824,7 +1032,7 @@
     if (!drawer) return;
 
     isDrawerOpen = !isDrawerOpen;
-    drawer.style.left = isDrawerOpen ? "0px" : "-420px";
+    drawer.style.left = isDrawerOpen ? "0px" : "-450px";
 
     if (isDrawerOpen) {
       // 抽屉打开时设置焦点
@@ -894,24 +1102,37 @@
 
   // 更新抽屉标题
   function updateDrawerTitle() {
-    const title = document.getElementById("contracts-drawer-title");
-    if (
-      title &&
-      title.firstChild &&
-      title.firstChild.nodeType === Node.TEXT_NODE
-    ) {
-      const count = contractsData.length;
-      const pageType = getPageType();
-      const titleText =
-        pageType === "spot"
-          ? `现货币种列表(${count})`
-          : `合约币种列表(${count})`;
-      title.firstChild.textContent = titleText;
-      console.log(`Updated drawer title with count: ${count}`);
-    } else {
+    const pageType = getPageType();
+    const allCount = contractsData.length;
+    const favoriteCount = favoriteSymbols[pageType].length;
+
+    // 更新全部按钮
+    const allBtn = document.getElementById("show-all-btn");
+    const favBtn = document.getElementById("show-favorites-btn");
+
+    if (allBtn && favBtn) {
+      // 更新按钮文本
+      allBtn.textContent = `全部(${allCount})`;
+      favBtn.textContent = `自选(${favoriteCount})`;
+
+      // 更新按钮状态
+      if (showOnlyFavorites[pageType]) {
+        allBtn.style.background = "transparent";
+        allBtn.style.color = "#666";
+        favBtn.style.background = "#2196f3";
+        favBtn.style.color = "white";
+      } else {
+        allBtn.style.background = "#2196f3";
+        allBtn.style.color = "white";
+        favBtn.style.background = "transparent";
+        favBtn.style.color = "#666";
+      }
+
       console.log(
-        "Could not update drawer title - element not found or no text node"
+        `Updated drawer title - All: ${allCount}, Favorites: ${favoriteCount}, ShowFavorites: ${showOnlyFavorites[pageType]}`
       );
+    } else {
+      console.log("Could not update drawer title - buttons not found");
     }
   }
 
@@ -1022,6 +1243,9 @@
 
   // 初始化插件
   function initializeExtension() {
+    // 加载自选数据
+    loadFavoriteSymbols();
+
     createExtensionButton();
     createDrawer();
 
