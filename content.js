@@ -148,9 +148,14 @@
     const currentPageType = getPageType();
     const otherPageType = currentPageType === "futures" ? "spot" : "futures";
 
+    console.log(
+      `loadOtherMarketData: current=${currentPageType}, other=${otherPageType}`
+    );
+
     // 检查另一个市场的缓存是否有效
     if (!isCacheValid(otherPageType)) {
       otherMarketData = [];
+      console.log(`loadOtherMarketData: ${otherPageType} cache is invalid`);
       return false;
     }
 
@@ -167,17 +172,36 @@
           otherPageType === "futures" ? "合约" : "现货"
         }数据用于对比`
       );
+      // 输出前几个币种用于调试
+      if (otherMarketData.length > 0) {
+        console.log(
+          `otherMarketData前5个币种: ${otherMarketData
+            .slice(0, 5)
+            .map((item) => item.symbol)
+            .join(", ")}`
+        );
+      }
       return true;
     }
 
     otherMarketData = [];
+    console.log(`loadOtherMarketData: no cached data for ${otherPageType}`);
     return false;
   }
 
   // 检查币种是否在两个市场都存在
   function hasMultipleMarkets(symbol) {
-    if (!otherMarketData || otherMarketData.length === 0) return false;
-    return otherMarketData.some((item) => item.symbol === symbol);
+    if (!otherMarketData || otherMarketData.length === 0) {
+      console.log(`hasMultipleMarkets(${symbol}): no otherMarketData`);
+      return false;
+    }
+    const found = otherMarketData.some((item) => item.symbol === symbol);
+    console.log(
+      `hasMultipleMarkets(${symbol}): ${
+        found ? "found" : "not found"
+      } in otherMarketData (${otherMarketData.length} items)`
+    );
+    return found;
   }
 
   // 自选币种相关函数
