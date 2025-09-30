@@ -15,6 +15,7 @@
   let currentSymbol = null; // 当前选中的币种
   let favoriteSymbols = { futures: [], spot: [] }; // 自选币种
   let showOnlyFavorites = { futures: false, spot: false }; // 是否只显示自选币种
+  let searchKeyword = ""; // 搜索关键词
 
   // localStorage键名常量
   const STORAGE_KEYS = {
@@ -29,6 +30,7 @@
     FAVORITES_SPOT: "gate_favorites_spot",
     SHOW_FAVORITES_FUTURES: "gate_show_favorites_futures",
     SHOW_FAVORITES_SPOT: "gate_show_favorites_spot",
+    SEARCH_KEYWORD: "gate_search_keyword",
   };
 
   // 缓存过期时间（30分钟）
@@ -104,6 +106,7 @@
     const cachedSymbol = loadFromLocalStorage(STORAGE_KEYS.CURRENT_SYMBOL);
     const cachedSortField = loadFromLocalStorage(STORAGE_KEYS.SORT_FIELD);
     const cachedSortOrder = loadFromLocalStorage(STORAGE_KEYS.SORT_ORDER);
+    const cachedSearchKeyword = loadFromLocalStorage(STORAGE_KEYS.SEARCH_KEYWORD);
 
     if (cachedData) {
       contractsData = cachedData;
@@ -114,6 +117,7 @@
       currentSymbol = urlSymbol || cachedSymbol;
       currentSortField = cachedSortField || "change_percentage_24h";
       currentSortOrder = cachedSortOrder || "desc";
+      searchKeyword = cachedSearchKeyword || "";
       dataLoaded = true;
 
       // 加载另一个市场的数据用于对比
@@ -140,6 +144,7 @@
     saveToLocalStorage(STORAGE_KEYS.CURRENT_SYMBOL, currentSymbol);
     saveToLocalStorage(STORAGE_KEYS.SORT_FIELD, currentSortField);
     saveToLocalStorage(STORAGE_KEYS.SORT_ORDER, currentSortOrder);
+    saveToLocalStorage(STORAGE_KEYS.SEARCH_KEYWORD, searchKeyword);
     saveToLocalStorage(timestampKey, Date.now());
   }
 
@@ -265,12 +270,24 @@
 
   function getFilteredContractsData() {
     const pageType = getPageType();
-    if (!showOnlyFavorites[pageType]) {
-      return contractsData;
+    let filteredData = contractsData;
+
+    // 首先按自选过滤
+    if (showOnlyFavorites[pageType]) {
+      filteredData = filteredData.filter((contract) =>
+        isFavorite(contract.symbol, pageType)
+      );
     }
-    return contractsData.filter((contract) =>
-      isFavorite(contract.symbol, pageType)
-    );
+
+    // 然后按搜索关键词过滤
+    if (searchKeyword.trim()) {
+      const keyword = searchKeyword.trim().toLowerCase();
+      filteredData = filteredData.filter((contract) =>
+        contract.symbol.toLowerCase().includes(keyword)
+      );
+    }
+
+    return filteredData;
   }
 
   // 切换到指定币种
@@ -825,6 +842,63 @@
     header.appendChild(title);
     header.appendChild(listHeader);
 
+    // 创建搜索框容器
+    const searchContainer = document.createElement("div");
+    searchContainer.style.cssText = `
+      padding: 8px 15px;
+      background: #f8f9fa;
+      border-bottom: 1px solid #e9ecef;
+    `;
+
+    // 创建搜索输入框
+    const searchInput = document.createElement("input");
+    searchInput.id = "search-input";
+    searchInput.type = "text";
+    searchInput.placeholder = "搜索币种符号...";
+    searchInput.value = searchKeyword;
+    searchInput.style.cssText = `
+      width: 100%;
+      padding: 8px 12px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-size: 14px;
+      outline: none;
+      transition: border-color 0.2s ease;
+      box-sizing: border-box;
+    `;
+
+    // 搜索框焦点效果
+    searchInput.addEventListener("focus", () => {
+      searchInput.style.borderColor = "#007bff";
+    });
+
+    searchInput.addEventListener("blur", () => {
+      searchInput.style.borderColor = "#ddd";
+    });
+
+    // 搜索功能
+    searchInput.addEventListener("input", (e) => {
+      searchKeyword = e.target.value;
+      saveCachedData(); // 保存搜索关键词
+      updateContractsList();
+      updateDrawerTitle();
+    });
+
+    // 清除搜索的快捷键 (ESC)
+    searchInput.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") {
+        e.stopPropagation(); // 阻止事件冒泡，避免关闭抽屉
+        searchInput.value = "";
+        searchKeyword = "";
+        saveCachedData();
+        updateContractsList();
+        updateDrawerTitle();
+        searchInput.blur(); // 移除焦点
+      }
+    });
+
+    searchContainer.appendChild(searchInput);
+
     // 创建列表容器
     const listContainer = document.createElement("div");
     listContainer.id = "contracts-list-container";
@@ -836,6 +910,7 @@
     `;
 
     drawer.appendChild(header);
+    drawer.appendChild(searchContainer);
     drawer.appendChild(listContainer);
     document.body.appendChild(drawer);
 
@@ -1078,6 +1153,12 @@
         sortContractsData(currentSortField, currentSortOrder);
         updateContractsList();
         updateDrawerTitle(); // 更新标题显示币种数量
+        
+        // 更新搜索框的值
+        const searchInput = document.getElementById("search-input");
+        if (searchInput) {
+          searchInput.value = searchKeyword;
+        }
       }
     } else {
       // 抽屉关闭时移除外部点击监听器
@@ -1129,15 +1210,27 @@
     const pageType = getPageType();
     const allCount = contractsData.length;
     const favoriteCount = favoriteSymbols[pageType].length;
+    const filteredCount = getFilteredContractsData().length;
 
     // 更新全部按钮
     const allBtn = document.getElementById("show-all-btn");
     const favBtn = document.getElementById("show-favorites-btn");
 
     if (allBtn && favBtn) {
-      // 更新按钮文本
-      allBtn.textContent = `全部(${allCount})`;
-      favBtn.textContent = `自选(${favoriteCount})`;
+      // 更新按钮文本 - 如果有搜索关键词，显示过滤后的数量
+      const showFilteredCount = searchKeyword.trim() !== "";
+      
+      if (showOnlyFavorites[pageType]) {
+        allBtn.textContent = `全部(${allCount})`;
+        favBtn.textContent = showFilteredCount 
+          ? `自选(${filteredCount}/${favoriteCount})` 
+          : `自选(${favoriteCount})`;
+      } else {
+        allBtn.textContent = showFilteredCount 
+          ? `全部(${filteredCount}/${allCount})` 
+          : `全部(${allCount})`;
+        favBtn.textContent = `自选(${favoriteCount})`;
+      }
 
       // 更新按钮状态
       if (showOnlyFavorites[pageType]) {
@@ -1153,7 +1246,7 @@
       }
 
       console.log(
-        `Updated drawer title - All: ${allCount}, Favorites: ${favoriteCount}, ShowFavorites: ${showOnlyFavorites[pageType]}`
+        `Updated drawer title - All: ${allCount}, Favorites: ${favoriteCount}, Filtered: ${filteredCount}, ShowFavorites: ${showOnlyFavorites[pageType]}, SearchKeyword: "${searchKeyword}"`
       );
     } else {
       console.log("Could not update drawer title - buttons not found");
