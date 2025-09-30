@@ -773,7 +773,7 @@
     toggleContainer.style.cssText = `
       display: flex;
       align-items: center;
-      background: #f0f0f0;
+      background: #d7e8ef;
       border-radius: 15px;
       padding: 2px;
     `;
@@ -1326,9 +1326,15 @@
 
     // 滚动到目标位置
     listContainer.scrollTop = targetScrollTop;
-    
-    console.log(`已定位到当前币种 ${currentSymbol}，位置: ${currentIndex + 1}/${filteredData.length}`);
-    showTooltip(`已定位到 ${currentSymbol} (${currentIndex + 1}/${filteredData.length})`);
+
+    console.log(
+      `已定位到当前币种 ${currentSymbol}，位置: ${currentIndex + 1}/${
+        filteredData.length
+      }`
+    );
+    showTooltip(
+      `已定位到 ${currentSymbol} (${currentIndex + 1}/${filteredData.length})`
+    );
   }
 
   // 创建圆形按钮
