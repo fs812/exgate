@@ -7,22 +7,26 @@
 ## 功能特性
 
 ### ✅ 实时搜索过滤
+
 - 在搜索框中输入关键词，立即过滤币种列表
 - 支持大小写不敏感的局部匹配
 - 无需按回车键，输入即搜索
 
 ### ✅ 智能匹配
+
 - **忽略大小写**: 输入 "btc" 可以匹配 "BTC"
 - **局部匹配**: 输入 "et" 可以匹配 "ETH"
 - **多结果匹配**: 输入 "a" 可以匹配 "ADA", "MATIC", "AVAX"
 
 ### ✅ 用户体验优化
+
 - 搜索框获得焦点时显示蓝色边框
-- ESC键快速清空搜索（仅在搜索框获得焦点时）
-- 搜索关键词自动保存到localStorage
+- ESC 键快速清空搜索（仅在搜索框获得焦点时）
+- 搜索关键词自动保存到 localStorage
 - 重新打开抽屉时恢复上次的搜索状态
 
 ### ✅ 数据统计显示
+
 - 标题栏按钮显示过滤结果统计
 - 格式: `全部(匹配数/总数)` 或 `自选(匹配数/总数)`
 - 无搜索时显示: `全部(总数)` 或 `自选(总数)`
@@ -31,12 +35,14 @@
 
 ### 核心函数修改
 
-1. **`getFilteredContractsData()`**: 
+1. **`getFilteredContractsData()`**:
+
    - 先按自选状态过滤
    - 再按搜索关键词过滤
    - 返回最终的过滤结果
 
-2. **`updateDrawerTitle()`**: 
+2. **`updateDrawerTitle()`**:
+
    - 增加了过滤数量的显示逻辑
    - 区分是否有搜索关键词的不同显示格式
 
@@ -46,11 +52,11 @@
 
 ### 数据持久化
 
-- 新增 `SEARCH_KEYWORD` localStorage键
+- 新增 `SEARCH_KEYWORD` localStorage 键
 - 搜索关键词与其他状态一起保存/恢复
 - 支持跨页面和重新打开插件时的状态恢复
 
-### UI界面设计
+### UI 界面设计
 
 ```css
 搜索框样式:
@@ -65,8 +71,9 @@
 ## 测试验证
 
 创建了完整的测试用例，验证以下场景：
+
 - ✅ 大小写不敏感匹配
-- ✅ 局部字符串匹配  
+- ✅ 局部字符串匹配
 - ✅ 空搜索显示全部结果
 - ✅ 无匹配时显示空列表
 - ✅ 搜索框前后空格处理
@@ -82,25 +89,28 @@
 ## 代码变更总结
 
 ### 新增变量
+
 - `searchKeyword`: 存储当前搜索关键词
-- `STORAGE_KEYS.SEARCH_KEYWORD`: localStorage键名
+- `STORAGE_KEYS.SEARCH_KEYWORD`: localStorage 键名
 
 ### 修改函数
+
 - `getFilteredContractsData()`: 增加搜索过滤逻辑
 - `updateDrawerTitle()`: 增加过滤数量显示
-- `createDrawer()`: 增加搜索框UI组件
+- `createDrawer()`: 增加搜索框 UI 组件
 - `toggleDrawer()`: 增加搜索框状态恢复
 - `loadCachedData()` / `saveCachedData()`: 增加搜索关键词的保存/恢复
 
 ### 文件修改
-- `content.js`: 主要功能实现（~50行新增代码）
+
+- `content.js`: 主要功能实现（~50 行新增代码）
 - `README.md`: 文档更新，增加搜索功能说明
 - 新增测试文件: `test_search.js`, `test_search.html`
 
 ## 兼容性
 
 - ✅ 与现有的自选功能完全兼容
-- ✅ 与排序功能完全兼容  
+- ✅ 与排序功能完全兼容
 - ✅ 与缓存机制完全兼容
 - ✅ 不影响键盘导航功能
 - ✅ 支持合约和现货两个市场

@@ -106,7 +106,9 @@
     const cachedSymbol = loadFromLocalStorage(STORAGE_KEYS.CURRENT_SYMBOL);
     const cachedSortField = loadFromLocalStorage(STORAGE_KEYS.SORT_FIELD);
     const cachedSortOrder = loadFromLocalStorage(STORAGE_KEYS.SORT_ORDER);
-    const cachedSearchKeyword = loadFromLocalStorage(STORAGE_KEYS.SEARCH_KEYWORD);
+    const cachedSearchKeyword = loadFromLocalStorage(
+      STORAGE_KEYS.SEARCH_KEYWORD
+    );
 
     if (cachedData) {
       contractsData = cachedData;
@@ -898,6 +900,7 @@
     });
 
     searchContainer.appendChild(searchInput);
+    header.appendChild(searchContainer);
 
     // 创建列表容器
     const listContainer = document.createElement("div");
@@ -910,7 +913,6 @@
     `;
 
     drawer.appendChild(header);
-    drawer.appendChild(searchContainer);
     drawer.appendChild(listContainer);
     document.body.appendChild(drawer);
 
@@ -1153,7 +1155,7 @@
         sortContractsData(currentSortField, currentSortOrder);
         updateContractsList();
         updateDrawerTitle(); // 更新标题显示币种数量
-        
+
         // 更新搜索框的值
         const searchInput = document.getElementById("search-input");
         if (searchInput) {
@@ -1219,15 +1221,15 @@
     if (allBtn && favBtn) {
       // 更新按钮文本 - 如果有搜索关键词，显示过滤后的数量
       const showFilteredCount = searchKeyword.trim() !== "";
-      
+
       if (showOnlyFavorites[pageType]) {
         allBtn.textContent = `全部(${allCount})`;
-        favBtn.textContent = showFilteredCount 
-          ? `自选(${filteredCount}/${favoriteCount})` 
+        favBtn.textContent = showFilteredCount
+          ? `自选(${filteredCount}/${favoriteCount})`
           : `自选(${favoriteCount})`;
       } else {
-        allBtn.textContent = showFilteredCount 
-          ? `全部(${filteredCount}/${allCount})` 
+        allBtn.textContent = showFilteredCount
+          ? `全部(${filteredCount}/${allCount})`
           : `全部(${allCount})`;
         favBtn.textContent = `自选(${favoriteCount})`;
       }
