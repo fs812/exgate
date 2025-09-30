@@ -634,8 +634,7 @@
     const title = document.createElement("h3");
     title.id = "contracts-drawer-title";
     title.style.cssText = `
-      margin: 0 0 10px 0;
-      padding: 0 15px;
+      padding: 0 8px;
       font-size: 16px;
       font-weight: 600;
       color: #333;
@@ -713,9 +712,41 @@
       scrollToTop();
     });
 
+    // 创建定位按钮
+    const locateBtn = document.createElement("button");
+    locateBtn.textContent = "定位";
+    locateBtn.style.cssText = `
+      background: #ffc107 !important;
+      color: #212529 !important;
+      border: none !important;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 12px;
+      cursor: pointer;
+      transition: background-color 0.2s ease;
+    `;
+
+    // 额外确保文字颜色
+    locateBtn.style.setProperty("color", "#212529", "important");
+
+    locateBtn.addEventListener("mouseenter", () => {
+      locateBtn.style.backgroundColor = "#e0a800";
+      locateBtn.style.setProperty("color", "#212529", "important");
+    });
+
+    locateBtn.addEventListener("mouseleave", () => {
+      locateBtn.style.backgroundColor = "#ffc107";
+      locateBtn.style.setProperty("color", "#212529", "important");
+    });
+
+    locateBtn.addEventListener("click", () => {
+      scrollToCurrentSymbol();
+    });
+
     // 将按钮添加到容器
     buttonContainer.appendChild(refreshBtn);
     buttonContainer.appendChild(topBtn);
+    buttonContainer.appendChild(locateBtn);
 
     // 创建标题区域
     const pageType = getPageType();
@@ -842,12 +873,11 @@
     }
 
     header.appendChild(title);
-    header.appendChild(listHeader);
 
     // 创建搜索框容器
     const searchContainer = document.createElement("div");
     searchContainer.style.cssText = `
-      padding: 8px 15px;
+      padding: 8px;
       background: #f8f9fa;
       border-bottom: 1px solid #e9ecef;
     `;
@@ -856,7 +886,7 @@
     const searchInput = document.createElement("input");
     searchInput.id = "search-input";
     searchInput.type = "text";
-    searchInput.placeholder = "搜索币种符号...";
+    searchInput.placeholder = "搜索币种";
     searchInput.value = searchKeyword;
     searchInput.style.cssText = `
       width: 100%;
@@ -901,6 +931,7 @@
 
     searchContainer.appendChild(searchInput);
     header.appendChild(searchContainer);
+    header.appendChild(listHeader);
 
     // 创建列表容器
     const listContainer = document.createElement("div");
@@ -1261,6 +1292,43 @@
     if (listContainer) {
       listContainer.scrollTop = 0;
     }
+  }
+
+  // 定位到当前币种
+  function scrollToCurrentSymbol() {
+    if (!currentSymbol) {
+      console.log("没有当前币种，无法定位");
+      showTooltip("没有当前币种");
+      return;
+    }
+
+    const listContainer = document.getElementById("contracts-list-container");
+    if (!listContainer) {
+      console.log("找不到列表容器");
+      return;
+    }
+
+    // 查找当前币种在过滤后数据中的索引
+    const filteredData = getFilteredContractsData();
+    const currentIndex = filteredData.findIndex(
+      (contract) => contract.symbol === currentSymbol
+    );
+
+    if (currentIndex === -1) {
+      console.log(`当前币种 ${currentSymbol} 在过滤后的列表中不存在`);
+      showTooltip(`当前币种 ${currentSymbol} 不在当前列表中`);
+      return;
+    }
+
+    // 计算滚动位置（每行高度约32px，加上header高度）
+    const rowHeight = 32;
+    const targetScrollTop = currentIndex * rowHeight;
+
+    // 滚动到目标位置
+    listContainer.scrollTop = targetScrollTop;
+    
+    console.log(`已定位到当前币种 ${currentSymbol}，位置: ${currentIndex + 1}/${filteredData.length}`);
+    showTooltip(`已定位到 ${currentSymbol} (${currentIndex + 1}/${filteredData.length})`);
   }
 
   // 创建圆形按钮
